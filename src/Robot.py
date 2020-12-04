@@ -73,7 +73,7 @@ class NewRobot:
         dpol = self.B @ u
         x[3:5] = u                                                              # vr, vl
 
-        mm = 2;                                                                 # select motion model
+        mm = 0;                                                                 # select motion model
         if mm == 0 :                                                            # model 0) : curved tranlation
             dpol[1] = util.avoid_singularity(dpol[1])                           # avoid singularity
             x[0] = x[0] + dpol[0]/dpol[1] * (np.sin(x[2]+dpol[1]) - np.sin(x[2]))   # x
@@ -97,7 +97,7 @@ class NewRobot:
         dpol = self.B @ u
         G = np.eye(5);
 
-        mm = 2;                                                                 # select motion model
+        mm = 0;                                                                 # select motion model
         if mm == 0 :                                                            # model 0) : curved tranlation
             dpol[1] = util.avoid_singularity(dpol[1])                           # avoid singularity
             c = dpol[0]/dpol[1];
@@ -140,7 +140,7 @@ class NewRobot:
         return Q
 
     def motion_model_inverse(self, x, xp):
-        """ inverse motion model, for use in simplistic controller
+        """ simplified inverse motion model, for use in g^-1 type controller
             takes a goal position (xp) and a current position (x) as input and
             outputs the motor controls necessary to reach it
             The outputs are capped to avoid explosion """
@@ -152,7 +152,7 @@ class NewRobot:
         dpol[1] = np.arctan2(dx[1], dx[0]) - x[2]
         dpol[1] = util.limit_pi(dpol[1])                                        # make dphi [-pi:pi]
         dpol[1] = util.avoid_singularity(dpol[1])                               # avoid singularity
-        dpol[1] = util.cap_abs(dpol[1], self.maxw)                              # cap rotation so we don't spin on the spot too much (we lose a lot of precision that way)
+        dpol[1] = util.cap_abs(dpol[1], self.maxw*self.Ts)                      # cap rotation so we don't spin on the spot too much (we lose a lot of precision that way)
 
         dpol[0] = np.abs(dpol[1]) * np.sqrt( 0.5 * (dx.T @ dx) / (1-np.cos(dpol[1])))
         dpol[0] = util.cap_abs(dpol[0], self.maxv*self.Ts)                      # cap speed
@@ -164,47 +164,36 @@ class NewRobot:
         """ interprets the raw sensor values into robot states
             takes current and previous sensor values as input, as well as
             static information about the world, and
-            prepares the robot for appliction of the extended Kalman filter"""
+            prepares the robot for appliction of the extended Kalman filter """
 
         C = np.concatenate((np.zeros((2,3)), np.eye(2)), axis = 1)
         r = self.r
         y = sensor_data[9:11].copy()
-        y[y>2**15] = y[y>2**15] - 2**16                                         # correct for the fact that the measurement is on 16 bit
+        y[y>2**15] = y[y>2**15] - (2**16-1)                                     # correct for the fact that the measurement is on 16 bit
 
         thresh = 750                                                            # TODO: thresh is bad
 
         for i in range(len(self.proxv)):
             #sensor_data[i] = 1000;
             xrel = util.rot_mat2D(self.xhat[2][0]) @ self.proxv[i].pos          # estimated relative position of sensor 0
-            x    = self.xhat[0:2] + xrel                                           # estimated absolute position of vertical sensor 0
+            x    = self.xhat[0:2] + xrel                                        # estimated absolute position of vertical sensor 0
             gridlines = field.grid * np.rint(x / field.grid)                    # closest gridlines
-            dist = np.abs(x - gridlines)                                      # estimated distances to closest gridlines
+            dist = np.abs(x - gridlines)                                        # estimated distances to closest gridlines
             grid_expected = dist < field.linew/2                                # do we expect a gridline here ?
 
             if sensor_data[7+i] < thresh :
-                #c0 = np.zeros((1,5))
-                #idx = np.argmin(dist)                                           # find closes gridlie to sensor position
-                #c0[0, idx] = 1;                                                 # prepare C matrix
-                #y0 = np.array([gridlines[idx] - xrel[idx]])
-                #if np.any(prev_sensor_data[7:9] < thresh) or grid_expected[idx]:# we can consider we are in the middle of a line
-                #    r0 = np.array([(field.linew/2)**2])                         # with high certainty
-                #else :
-                #    r0 = np.array([(2*field.linew)**2])                         # otherwise we're not very certain (arbitrary large variance)
                 c0    = np.concatenate((np.eye(2), np.zeros((2,3))), axis = 1)
                 line  = np.array([np.linspace(-field.grid/2, field.grid/2, field.grid)])
                 xgrid = np.concatenate((gridlines[0]*np.ones((1,field.grid)), x[1] + line), axis=0);
                 ygrid = np.concatenate((x[0] + line, gridlines[1]*np.ones((1,field.grid))), axis=0);
                 pdf   = np.concatenate((util.mvnpdf2D(xgrid,x,self.s[0:2,0:2]),util.mvnpdf2D(ygrid,x,self.s[0:2,0:2])))
 
-
                 idx_pos = np.argmax(pdf, axis=1)
                 idx_dim = np.argmax(np.array([pdf[0,idx_pos[0]], pdf[1,idx_pos[1]]]))
 
-                #print(idx_dim)
-
                 if idx_dim == 0:
                     y0 = np.array([xgrid[:,idx_pos[0]]]).T - xrel
-                    r0 = np.array([field.linew, field.grid/4])**2
+                    r0 = np.array([field.linew, field.grid/4])**2               # we can be relatively sure about the gridline coordinate, less about the other one
                 else :
                     y0 = np.array([xgrid[:,idx_pos[1]]]).T - xrel
                     r0 = np.array([field.grid/4, field.linew])**2
@@ -212,11 +201,12 @@ class NewRobot:
                 r = np.concatenate((r0, r), axis=0)                             # BEWARE : this part is not robust at all, it can go terribly wrong terribly fast
                 C = np.concatenate((c0, C))
                 y = np.concatenate((y0, y), axis=0)
+
             elif np.any(grid_expected) :                                        # if we expect a grid to be there, but it isn't
                 idx = grid_expected.reshape(2)
                 c0  = np.eye(2,5)[idx,:]
                 y0  = (gridlines - xrel - np.sign((gridlines - x))*field.linew)[idx]
-                r0  = (field.grid/4)**2 * np.ones((1,2))[:,idx][0]
+                r0  = (field.grid/4)**2 * np.ones((1,2))[:,idx][0]              # we don't know where we are, but we know where we are not
                 r = np.concatenate((r0, r), axis=0)
                 C = np.concatenate((c0, C))
                 y = np.concatenate((y0, y), axis=0)
@@ -253,7 +243,7 @@ class NewRobot:
         if not q.size:
             q = self.q
 
-        w = np.sqrt([q]).T * np.random.randn(2,1)                               # simulate process noise
+        w = 4*np.sqrt([q]).T * np.random.randn(2,1) + np.array([[2],[0]])       # simulate excessive process noise & bias
         self.x = self.motion_model(self.x, u + w)
 
         return self.x.copy()
@@ -312,7 +302,6 @@ class NewRobot:
         while idx < len(dist) and dist[idx] < thresh:                           # if we're close enough, we're close enough
             arrived = True
             idx = idx + 1
-            #print("arrived")
 
         for i in range(idx) :
             goals.pop(0)                                                        # pop the useless goals from the list
@@ -322,7 +311,6 @@ class NewRobot:
         else:
             u = np.zeros((2,1))
 
-        #u = self.avoid_obstacle(u, sensor_data)
         # make sure we don't bump into anything unexpected
 
         # check if thymio is avoiding an obstacle
@@ -332,7 +320,7 @@ class NewRobot:
 
         local_obstacle = False
 
-        if self.th["event.args"][0] == 1:
+        if self.th and self.th["event.args"][0] == 1:
             local_obstacle = True
             if arrived:
                 side = self.th["event.args"][1] # 0 when left, 1 when right, 3 when none

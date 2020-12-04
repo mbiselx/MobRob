@@ -5,22 +5,29 @@
 <!--list of global events-->
 <event size="1" name="debug"/>
 <event size="1" name="state_change"/>
-<constant name="BLIND_TURN_DELAY" value="20"/>
-<constant name="BLIND_TURN_RADIUS_L" value="-20"/>
-<constant name="BLIND_TURN_RADIUS_R" value="20"/>
-<constant name="E_DIV" value="100"/>
-<constant name="NO_OBSTACLE_STEPS_MAX" value="75"/>
-<constant name="P" value="10"/>
-<constant name="REDUCED_SPEED_1" value="67"/>
-<constant name="REDUCED_SPEED_2" value="44"/>
-<constant name="REF" value="1900"/>
-<constant name="STATE_LEFT" value="0"/>
-<constant name="STATE_NONE" value="3"/>
-<constant name="STATE_RIGHT" value="1"/>
 
 
-<!--node Thymio-II Wireless-->
-<node name="Thymio-II Wireless" nodeId="{b8704517-d1f6-48e1-a095-05650a949dd7}"><![CDATA[# state
+<!--list of constants-->
+<constant value="20" name="BLIND_TURN_DELAY"/>
+<constant value="-20" name="BLIND_TURN_RADIUS_L"/>
+<constant value="20" name="BLIND_TURN_RADIUS_R"/>
+<constant value="100" name="E_DIV"/>
+<constant value="75" name="NO_OBSTACLE_STEPS_MAX"/>
+<constant value="10" name="P"/>
+<constant value="67" name="REDUCED_SPEED_1"/>
+<constant value="44" name="REDUCED_SPEED_2"/>
+<constant value="1900" name="REF"/>
+<constant value="0" name="STATE_LEFT"/>
+<constant value="3" name="STATE_NONE"/>
+<constant value="1" name="STATE_RIGHT"/>
+
+
+<!--show keywords state-->
+<keywords flag="true"/>
+
+
+<!--node thymio-II-->
+<node nodeId="1" name="thymio-II"># state
 var side_state = 3
 var old_state  = 3
 var no_obstacle_steps = 0
@@ -78,7 +85,7 @@ elseif  event.args[0] == 1 then
     elseif distance_left > distance_right then
         side_state = STATE_LEFT
         no_obstacle_steps = 0
-    elseif distance_left < distance_right then
+    elseif distance_left &lt; distance_right then
         side_state = STATE_RIGHT
         no_obstacle_steps = 0
     end
@@ -130,11 +137,11 @@ elseif  event.args[0] == 1 then
             e = -(distance_right - REF)/E_DIV
             blind = 0
         end
-        if prox.horizontal[3] > 0 and e < 0 then
+        if prox.horizontal[3] > 0 and e &lt; 0 then
             e = e * sensor_2_factor
             speed = REDUCED_SPEED_1
         end
-        if prox.horizontal[2] > 0 and e < 0 then
+        if prox.horizontal[2] > 0 and e &lt; 0 then
             e = e * sensor_3_factor
             speed = REDUCED_SPEED_2
         end
@@ -170,7 +177,161 @@ if button.center == 1 then
 	event.args[0] = 2
 	motor.left.target = 0
 	motor.right.target = 0
-end]]></node>
+end</node>
+
+
+<!--node Thymio-II Wireless-->
+<node nodeId="0" name="Thymio-II Wireless"># state
+var side_state = 3
+var old_state  = 3
+var no_obstacle_steps = 0
+
+# controller
+var speed
+var sensor_2_factor = 1
+var sensor_3_factor = 2
+var speed_reduction = 1
+
+# blind turn parameters
+var blind = 0
+
+var distance_left
+var distance_right
+var e
+var speed_left
+var speed_right
+var i
+var ignore_wall = 0
+
+event.args[0] = 0
+
+timer.period[0] = 200   # 200ms sampling time
+
+# things that could be better:
+# - not emitting events
+# - blind turn with speed = 0
+
+onevent timer0
+if event.args[0] == 2 then
+	if prox.horizontal[3] > 0 then
+		event.args[0] = 0
+		emit debug 0
+	else
+		ignore_wall += 1
+		if ignore_wall > BLIND_TURN_DELAY then
+			ignore_wall = 0
+			event.args[0] = 0
+			emit debug 0
+		end
+	end
+elseif  event.args[0] == 1 then
+    speed = 50
+    # read and transform sensor data
+    distance_left =  prox.horizontal[0]
+    distance_right = prox.horizontal[4]
+    
+    # define current state
+    if distance_left == 0 and distance_right == 0 then
+        no_obstacle_steps = no_obstacle_steps + 1
+        if no_obstacle_steps > NO_OBSTACLE_STEPS_MAX then
+            side_state = STATE_NONE
+        end
+    elseif distance_left > distance_right then
+        side_state = STATE_LEFT
+        no_obstacle_steps = 0
+    elseif distance_left &lt; distance_right then
+        side_state = STATE_RIGHT
+        no_obstacle_steps = 0
+    end
+    
+    # check if state has changed
+    if old_state != side_state then 
+    		emit state_change side_state
+    		old_state = side_state
+    		blind = 0
+    		event.args[1] = side_state
+	end
+    
+    # calculate the error which depends on the current state
+    if side_state == STATE_NONE then
+    		e = 0
+    elseif side_state == STATE_LEFT then
+        # blind turn
+        if distance_left == 0 then
+            # wait before turning
+            if blind > BLIND_TURN_DELAY then
+                e = BLIND_TURN_RADIUS_L
+            else
+                e = 0
+                blind = blind + 1
+            end
+        else
+            e = -(REF - distance_left)/E_DIV
+            blind = 0
+        end
+        # turn harder if the obstacle is in front of the robot 
+        if prox.horizontal[1] > 0 and e > 0 then
+            e = e * sensor_2_factor
+            speed = REDUCED_SPEED_1
+        end
+        if prox.horizontal[2] > 0 and e > 0 then
+            e = e * sensor_3_factor
+            speed = REDUCED_SPEED_2
+        end
+            
+    elseif side_state == STATE_RIGHT then
+        if distance_right == 0 then
+            if blind > BLIND_TURN_DELAY then
+                e = BLIND_TURN_RADIUS_R
+            else
+                e = 0
+                blind = blind + 1
+            end
+        else
+            e = -(distance_right - REF)/E_DIV
+            blind = 0
+        end
+        if prox.horizontal[3] > 0 and e &lt; 0 then
+            e = e * sensor_2_factor
+            speed = REDUCED_SPEED_1
+        end
+        if prox.horizontal[2] > 0 and e &lt; 0 then
+            e = e * sensor_3_factor
+            speed = REDUCED_SPEED_2
+        end
+    end
+    
+    #emit debug e
+
+    speed_left = P * e * side_state + speed # change only if wall is on the right
+    speed_right = - P * e * (1 - side_state) + speed # change only if wall is on the left
+    motor.left.target = speed_left
+    motor.right.target = speed_right
+end
+
+onevent prox
+if event.args[0] != 2 then
+	for i in 0:4 do
+		if  event.args[0] == 0 and prox.horizontal[i] > 0 then
+				event.args[0] = 1
+				emit debug 1
+		end
+	end
+end
+#if event.args[0] == 1 and prox.horizontal[5] > 0 then
+#	# evtl. set some variables to 0
+#	event.args[0] = 0
+#	motor.left.target = 0
+#	motor.right.target = 0
+#	emit debug 0
+#end
+
+onevent button.center
+if button.center == 1 then
+	event.args[0] = 2
+	motor.left.target = 0
+	motor.right.target = 0
+end</node>
 
 
 </network>
