@@ -43,7 +43,7 @@ def adapt_vision_coords(coords, field):
     """ switch from vision coordinate system to controller coordinate system """
     x    = np.zeros((5,1))
     x[0] = coords[0]
-    x[1] = field.ymax - coords[1]
+    x[1] = coords[1]
     x[2] = limit_pi(coords[2])
     return x
 

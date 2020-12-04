@@ -8,11 +8,12 @@
 
 
 <!--list of constants-->
-<constant value="150" name="BLIND_TURN_DELAY"/>
+<constant value="20" name="BLIND_TURN_DELAY"/>
 <constant value="-20" name="BLIND_TURN_RADIUS_L"/>
-<constant value="50" name="BLIND_TURN_RADIUS_R"/>
+<constant value="20" name="BLIND_TURN_RADIUS_R"/>
 <constant value="100" name="E_DIV"/>
-<constant value="30" name="P"/>
+<constant value="75" name="NO_OBSTACLE_STEPS_MAX"/>
+<constant value="10" name="P"/>
 <constant value="67" name="REDUCED_SPEED_1"/>
 <constant value="44" name="REDUCED_SPEED_2"/>
 <constant value="1900" name="REF"/>
@@ -28,12 +29,11 @@
 <!--node thymio-II-->
 <node nodeId="1" name="thymio-II"># state
 var side_state = 3
-var old_state = 3
-var no_obstacle_steps_max = 500
+var old_state  = 3
 var no_obstacle_steps = 0
 
 # controller
-var speed = 100
+var speed
 var sensor_2_factor = 1
 var sensor_3_factor = 2
 var speed_reduction = 1
@@ -51,7 +51,7 @@ var ignore_wall = 0
 
 event.args[0] = 0
 
-timer.period[0] = 10   # 10ms sampling time
+timer.period[0] = 200   # 200ms sampling time
 
 # things that could be better:
 # - not emitting events
@@ -71,7 +71,7 @@ if event.args[0] == 2 then
 		end
 	end
 elseif  event.args[0] == 1 then
-    speed = 100
+    speed = 50
     # read and transform sensor data
     distance_left =  prox.horizontal[0]
     distance_right = prox.horizontal[4]
@@ -79,7 +79,7 @@ elseif  event.args[0] == 1 then
     # define current state
     if distance_left == 0 and distance_right == 0 then
         no_obstacle_steps = no_obstacle_steps + 1
-        if no_obstacle_steps > no_obstacle_steps_max then
+        if no_obstacle_steps > NO_OBSTACLE_STEPS_MAX then
             side_state = STATE_NONE
         end
     elseif distance_left > distance_right then
@@ -172,23 +172,22 @@ end
 #	emit debug 0
 #end
 
-onevent button.backward
-if button.backward == 1 then
+onevent button.center
+if button.center == 1 then
 	event.args[0] = 2
 	motor.left.target = 0
 	motor.right.target = 0
 end</node>
 
 
-<!--node Thymio-II-->
-<node nodeId="0" name="Thymio-II"># state
+<!--node Thymio-II Wireless-->
+<node nodeId="0" name="Thymio-II Wireless"># state
 var side_state = 3
-var old_state = 3
-var no_obstacle_steps_max = 500
+var old_state  = 3
 var no_obstacle_steps = 0
 
 # controller
-var speed = 100
+var speed
 var sensor_2_factor = 1
 var sensor_3_factor = 2
 var speed_reduction = 1
@@ -206,7 +205,7 @@ var ignore_wall = 0
 
 event.args[0] = 0
 
-timer.period[0] = 10   # 10ms sampling time
+timer.period[0] = 200   # 200ms sampling time
 
 # things that could be better:
 # - not emitting events
@@ -226,7 +225,7 @@ if event.args[0] == 2 then
 		end
 	end
 elseif  event.args[0] == 1 then
-    speed = 100
+    speed = 50
     # read and transform sensor data
     distance_left =  prox.horizontal[0]
     distance_right = prox.horizontal[4]
@@ -234,7 +233,7 @@ elseif  event.args[0] == 1 then
     # define current state
     if distance_left == 0 and distance_right == 0 then
         no_obstacle_steps = no_obstacle_steps + 1
-        if no_obstacle_steps > no_obstacle_steps_max then
+        if no_obstacle_steps > NO_OBSTACLE_STEPS_MAX then
             side_state = STATE_NONE
         end
     elseif distance_left > distance_right then
@@ -327,8 +326,8 @@ end
 #	emit debug 0
 #end
 
-onevent button.backward
-if button.backward == 1 then
+onevent button.center
+if button.center == 1 then
 	event.args[0] = 2
 	motor.left.target = 0
 	motor.right.target = 0
