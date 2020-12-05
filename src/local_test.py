@@ -1,12 +1,13 @@
 import numpy as np
 
-side = 1
+side = 0
 
-delta_x = -400                  # dist next goal & robot
-delta_y = 300
-robot_ang = 1.5
+delta_x = 720 - 770                # dist next goal & robot
+delta_y = 180 - 300
+robot_ang = -.3
 print("robot_ang", np.rad2deg(robot_ang))
 ang_to_goal = np.arctan2(delta_y, delta_x) # between -pi and pi
+print("ang_to_goal", np.rad2deg(ang_to_goal))
 while ang_to_goal > 2*np.pi:
     ang_to_goal = ang_to_goal - 2*np.pi
 while ang_to_goal < 0:

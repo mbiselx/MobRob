@@ -330,8 +330,8 @@ class NewRobot:
                 side = self.th["event.args"][1] # 0 when left, 1 when right, 3 when none
                 goal_side = side
 
-                delta_x = (self.xhat[0] - np.array([goals[-1]]).T[0])
-                delta_y = (self.xhat[1] - np.array([goals[-1]]).T[1])
+                delta_x = (np.array([goals[-1]]).T[0] - self.xhat[0])
+                delta_y = (np.array([goals[-1]]).T[1] - self.xhat[1])
                 robot_ang = self.xhat[2]
                 ang_to_goal = math.atan2(delta_y, delta_x) # between -pi and pi
                 while ang_to_goal > 2*math.pi:
