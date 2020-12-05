@@ -3,8 +3,6 @@
 
 
 <!--list of global events-->
-<event size="1" name="debug"/>
-<event size="1" name="state_change"/>
 
 
 <!--list of constants-->
@@ -16,10 +14,11 @@
 <constant value="10" name="P"/>
 <constant value="67" name="REDUCED_SPEED_1"/>
 <constant value="44" name="REDUCED_SPEED_2"/>
-<constant value="1900" name="REF"/>
+<constant value="1700" name="REF"/>
 <constant value="0" name="STATE_LEFT"/>
 <constant value="3" name="STATE_NONE"/>
 <constant value="1" name="STATE_RIGHT"/>
+<constant value="10" name="IGNORE_WALL_DELAY"/>
 
 
 <!--show keywords state-->
@@ -49,7 +48,7 @@ var speed_right
 var i
 var ignore_wall = 0
 
-event.args[0] = 0
+event.args[0] = 2
 
 timer.period[0] = 200   # 200ms sampling time
 
@@ -59,17 +58,11 @@ timer.period[0] = 200   # 200ms sampling time
 
 onevent timer0
 if event.args[0] == 2 then
-	if prox.horizontal[3] > 0 then
-		event.args[0] = 0
-		emit debug 0
-	else
 		ignore_wall += 1
-		if ignore_wall > BLIND_TURN_DELAY then
-			ignore_wall = 0
-			event.args[0] = 0
-			emit debug 0
+		if ignore_wall > IGNORE_WALL_DELAY then
+				ignore_wall = 0
+				event.args[0] = 0
 		end
-	end
 elseif  event.args[0] == 1 then
     speed = 50
     # read and transform sensor data
@@ -92,7 +85,6 @@ elseif  event.args[0] == 1 then
     
     # check if state has changed
     if old_state != side_state then 
-    		emit state_change side_state
     		old_state = side_state
     		blind = 0
     		event.args[1] = side_state
@@ -101,6 +93,7 @@ elseif  event.args[0] == 1 then
     # calculate the error which depends on the current state
     if side_state == STATE_NONE then
     		e = 0
+    		event.args[0]=0
     elseif side_state == STATE_LEFT then
         # blind turn
         if distance_left == 0 then
@@ -146,8 +139,6 @@ elseif  event.args[0] == 1 then
             speed = REDUCED_SPEED_2
         end
     end
-    
-    #emit debug e
 
     speed_left = P * e * side_state + speed # change only if wall is on the right
     speed_right = - P * e * (1 - side_state) + speed # change only if wall is on the left
@@ -160,16 +151,16 @@ if event.args[0] != 2 then
 	for i in 0:4 do
 		if  event.args[0] == 0 and prox.horizontal[i] > 0 then
 				event.args[0] = 1
-				emit debug 1
 		end
 	end
+elseif prox.horizontal[2] != 0 then
+	event.args[0] = 1
 end
 #if event.args[0] == 1 and prox.horizontal[5] > 0 then
 #	# evtl. set some variables to 0
 #	event.args[0] = 0
 #	motor.left.target = 0
 #	motor.right.target = 0
-#	emit debug 0
 #end
 
 onevent button.center

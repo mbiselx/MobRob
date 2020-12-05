@@ -43,7 +43,7 @@ class NewField:
             plt.plot(xhat[0,:] + s*sin, xhat[1,:] - s*cos, '--c');
 
         if xreal.size :
-            plt.plot(xreal[0,:], xreal[1,:], '-g', linewidth=2, label="real trajectory")          # plot real trajectory
+            plt.plot(xreal[0,:], xreal[1,:], '-g', linewidth=2, label="camera trajectory")          # plot real trajectory
 
         if xodo.size :
             plt.plot(xodo[0,:],  xodo[1,:],  '-y', linewidth=2, label="odometry trajectory");

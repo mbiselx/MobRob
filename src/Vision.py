@@ -22,7 +22,7 @@ def get_clean_map(img, map_shape) :
     labels = labels[np.argsort(counts)];                                        # sort the blobs by size,
 
     if (labels.size < 5):
-        return img.copy()
+        return False, img.copy()
 
     blobs = np.zeros((4,2))
     for i in range(0,4):                                                        # take the four biggest blobs
@@ -32,6 +32,11 @@ def get_clean_map(img, map_shape) :
         cX =  int ( M ["m10"] / M ["m00"] )
         cY =  int ( M ["m01"] / M ["m00"] )
         blobs[i , :] = np.array([cX,cY])
+
+        img [: , : , 0] = np.where ( labeled_mask == (labels[labels.size - 2 - i]) , 200 , img [: , : , 0] )
+        img [: , : , 1] = np.where ( labeled_mask == (labels[labels.size - 2 - i]) , 200 , img [: , : , 1] )
+        img [: , : , 2] = np.where ( labeled_mask == (labels[labels.size - 2 - i]) , 200 , img [: , : , 2] )
+
 
     xmin, xmax = np.min(blobs[:,0]), np.max(blobs[:,0])                         # sort corners
     ymin, ymax = np.min(blobs[:,1]), np.max(blobs[:,1])
@@ -52,7 +57,7 @@ def get_clean_map(img, map_shape) :
     target_shape = np.array([[0,0],[0,map_shape[1]], [map_shape[0],0], map_shape], np.float32)
     transformer  = cv2.getPerspectiveTransform(np.float32(corners), target_shape)
     true_map     = cv2.warpPerspective(img, transformer, tuple(map_shape))      # apply reshape
-    return true_map
+    return True, true_map
 
 
 def robot_detection(true_map, draw = False):
@@ -62,7 +67,7 @@ def robot_detection(true_map, draw = False):
 
     imgHSV2 = cv2.cvtColor (blurred_img, cv2.COLOR_BGR2HSV )
     lower1  = np.array ([  0 ,  75 ,  75])                                      # hsv for lower red-orange
-    upper1  = np.array ([ 20 , 255 , 255])
+    upper1  = np.array ([ 10 , 255 , 255])
     lower2  = np.array ([170 ,  75 ,  75])                                      # hsv for upper red-magenta
     upper2  = np.array ([180 , 255 , 255])
     mask1   = cv2.inRange ( imgHSV2 , lower1 , upper1 )
@@ -152,16 +157,18 @@ def goal_detection(true_map, draw = False):
         return goal
 
 
-def get_global_search_map(true_map):
+def get_global_search_map(true_map, robot_pos):
     """ return the map dilate to make obstacles a bit bigger to take into
     account the size of the robot """
 
     processed_map = cv2.cvtColor (true_map, cv2.COLOR_BGR2GRAY )                # make img grayscale
-    processed_map = cv2.GaussianBlur(processed_map,(15,15),cv2.BORDER_DEFAULT)  # blur img to get more uniform values
+    processed_map = cv2.GaussianBlur(processed_map,(25,25),cv2.BORDER_DEFAULT)  # blur img to get more uniform values
 
-    _ , processed_map = cv2.threshold(processed_map, 75, 255, cv2.THRESH_BINARY_INV ) # apply a fixed threshold binarization
+    _ , processed_map = cv2.threshold(processed_map, 50, 255, cv2.THRESH_BINARY_INV ) # apply a fixed threshold binarization
 
-    processed_map = cv2.erode (processed_map, np.ones((10, 10), np.uint8), iterations = 1 ) # get ride of all the thin black lines & shadows
-    processed_map = cv2.dilate(processed_map, np.ones((20, 20), np.uint8), iterations = 2 ) # increase the size of the remaining obstacles
+    processed_map[int(robot_pos[0][0]-20):int(robot_pos[0][0]+20), int(robot_pos[1][0]-20):int(robot_pos[1][0]+20)] = 0
+
+    processed_map = cv2.erode (processed_map, np.ones((30, 30), np.uint8), iterations = 1 ) # get ride of all the thin black lines & shadows
+    processed_map = cv2.dilate(processed_map, np.ones((80, 80), np.uint8), iterations = 3 ) # increase the size of the remaining obstacles
 
     return processed_map

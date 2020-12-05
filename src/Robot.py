@@ -300,7 +300,6 @@ class NewRobot:
         idx = np.argmin(np.array(dist));
 
         while idx < len(dist) and dist[idx] < thresh:                           # if we're close enough, we're close enough
-            arrived = True
             idx = idx + 1
 
         for i in range(idx) :
@@ -318,16 +317,21 @@ class NewRobot:
         #    -> check if goal is on the left or on the right
         #       -> exit obstacle avoidance or not
 
+        thresh = 70
+        if np.linalg.norm(np.array([goals[0]]).T - self.xhat[0:2]) < thresh :
+            arrived = True
+
         local_obstacle = False
 
         if self.th and self.th["event.args"][0] == 1:
             local_obstacle = True
             if arrived:
+                print("arrived")
                 side = self.th["event.args"][1] # 0 when left, 1 when right, 3 when none
                 goal_side = side
 
-                delta_x = (self.xhat[0] - np.array([goals[0]]).T[0])
-                delta_y = (self.xhat[1] - np.array([goals[0]]).T[1])
+                delta_x = (self.xhat[0] - np.array([goals[-1]]).T[0])
+                delta_y = (self.xhat[1] - np.array([goals[-1]]).T[1])
                 robot_ang = self.xhat[2]
                 ang_to_goal = math.atan2(delta_y, delta_x) # between -pi and pi
                 while ang_to_goal > 2*math.pi:
@@ -349,7 +353,10 @@ class NewRobot:
                 if delta_ang < math.pi:
                     goal_side = 0 # goal on the left
 
+                print("side:",side)
+                print("goal side:",goal_side)
                 if side != goal_side:
+                    print("leave l_obs_mode")
                     self.th.set_var("event.args", 2)
                     local_obstacle = False
 
