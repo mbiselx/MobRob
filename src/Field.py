@@ -4,18 +4,22 @@ import numpy as np
 class NewField:
     def __init__ (self, xsize, ysize, grid, linew):
         """ make a simplistic model of the robot's environment """
+        self.xmin  = 0;                                                         # field size
+        self.xmax  = xsize;
+        self.ymin  = 0;
+        self.ymax  = ysize;
 
+        self.bkgnd = np.array([])                                               # field elements
+        self.obst  = np.array([])
+        self.goals = []
         self.grid  = grid
         self.linew = linew
-        self.xmin = 0;
-        self.xmax = xsize;
-        self.ymin = 0;
-        self.ymax = ysize;
-        self.xreal = np.array([])
+
+        self.xreal = np.array([])                                               # robot stuff
         self.xhat  = np.array([])
         self.xodo  = np.array([])
         self.s     = np.array([])
-        self.goals = []
+
 
     def plot(self):
         s = np.array(self.s)
@@ -23,6 +27,10 @@ class NewField:
         xodo  = self.xodo.copy()
         xhat  = self.xhat.copy()
         goals = np.array(self.goals).T
+        bkgnd = self.bkgnd.copy()
+
+        #if bkgnd.size :
+        #    plt.imshow(bkgnd, origin = 'lower', extent=(field.xmin, field.xmax, field.ymin, field.ymax))
 
         for i in range(int((self.xmax - self.xmin)/self.grid)+1) :                   # plot vertical gridlines
             plt.plot(i*self.grid*np.ones((2,1)), np.array([self.ymin, self.ymax]), '-k');

@@ -56,6 +56,6 @@ def adapt_pathfinder_coords(path, field, grid_shape):
 
 def rescale_int_coords(coords, map_size_in, map_size_out):
     """ rescale coordinates  """
-    coords[0] = coords[0] * map_size_out[0] / map_size_in[0]
-    coords[1] = coords[1] * map_size_out[1] / map_size_in[1]
-    return np.int32(coords)
+    x = coords[0][0] * map_size_out[0] / map_size_in[0]
+    y = coords[1][0] * map_size_out[1] / map_size_in[1]
+    return np.array([x, y], np.int32)

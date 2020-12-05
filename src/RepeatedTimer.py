@@ -1,3 +1,4 @@
+from threading import Timer
 # we use a bit of code from the course to make threads that can run in parallel
 class Thread(object):
     def __init__(self, interval, function, *args, **kwargs):
