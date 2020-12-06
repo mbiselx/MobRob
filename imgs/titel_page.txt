@@ -1,5 +1,0 @@
-**Group 3**: Loïk Vuilleumier (283675), Marc Favier (), Michael Biselx (283812), Samuel Bumann (284704)
-
----
-# Basics of Mobile Robotics Miniproject
----
