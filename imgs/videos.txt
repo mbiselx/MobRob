@@ -1,0 +1,35 @@
+%%HTML
+<div align="middle">
+<video width="80%" controls>
+    <source src="./videos/run_1.mp4">
+</video></div>
+<br>
+<i>Video 1: This video shows a successful test: The robot follows the planned path, while avoiding the local (white block) and global obstacles (black spots).</i>
+<br> <br>
+
+%%HTML
+<div align="middle">
+<video width="80%" controls>
+    <source src="./videos/run_2.mp4">
+</video></div>
+<br>
+<i>Video 2: This video shows another successful test: The robot follows the planned path, while avoiding the local (white block) and global obstacles (black spots).</i>
+<br> <br>
+
+%%HTML
+<div align="middle">
+<video width="80%" controls>
+    <source src="./videos/kidnapping.mp4">
+</video></div>
+<br>
+<i>Video 3: This video shows the robot successfully dealing with a kidnapping situation.</i>
+<br> <br>
+
+%%HTML
+<div align="middle">
+<video width="80%" controls>
+    <source src="./videos/no_camera.mp4">
+</video></div>
+<br>
+<i>Video 4: This video shows the robot successfully finding it’s path to the goal position, without using the camera (one of the blue sports is covered with a black sheet of paper during the global navigation)</i>
+<br> <br>
