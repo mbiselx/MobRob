@@ -22,7 +22,7 @@ class NewField:
 
 
     def plot(self):
-        s = np.array(self.s)
+        s = 2*np.array(self.s)
         xreal = self.xreal.copy()
         xodo  = self.xodo.copy()
         xhat  = self.xhat.copy()
@@ -39,7 +39,7 @@ class NewField:
 
         if s.size and s.size == xhat.shape[1]:
             cos, sin = np.cos(xhat[2,:]), np.sin(xhat[2,:])
-            plt.plot(xhat[0,:] - s*sin, xhat[1,:] + s*cos, '--c', label="uncertainty"); # plot uncertainty
+            plt.plot(xhat[0,:] - s*sin, xhat[1,:] + s*cos, '--c', label="90% uncertainty"); # plot uncertainty
             plt.plot(xhat[0,:] + s*sin, xhat[1,:] - s*cos, '--c');
 
         if xreal.size :

@@ -1,6 +1,5 @@
 import numpy as np
 import util
-import math
 
 from Thymio import Thymio
 
@@ -70,25 +69,26 @@ class NewRobot:
         """ Model of the non-holonomic motion model
             takes motor speeds as input and outputs a position estimate """
 
-        dpol = self.B @ u
-        x[3:5] = u                                                              # vr, vl
+        out = np.zeros((5,1))
+        out[3:5] = u
+        dpol = self.B @ u                                                       # vr, vl
 
-        mm = 0;                                                                 # select motion model
+        mm = 1;                                                                 # select motion model
         if mm == 0 :                                                            # model 0) : curved tranlation
             dpol[1] = util.avoid_singularity(dpol[1])                           # avoid singularity
-            x[0] = x[0] + dpol[0]/dpol[1] * (np.sin(x[2]+dpol[1]) - np.sin(x[2]))   # x
-            x[1] = x[1] + dpol[0]/dpol[1] * (np.cos(x[2]) - np.cos(x[2]+dpol[1]))   # y
-            x[2] = util.limit_pi(x[2] + dpol[1]);                               # phi
+            out[0] = x[0] + dpol[0]/dpol[1] * (np.sin(x[2]+dpol[1]) - np.sin(x[2]))   # x
+            out[1] = x[1] + dpol[0]/dpol[1] * (np.cos(x[2]) - np.cos(x[2]+dpol[1]))   # y
+            out[2] = util.limit_pi(x[2] + dpol[1]);                               # phi
         if mm == 1 :                                                            # model 1) : rotate then translate
-            x[2] = util.limit_pi(x[2] + dpol[1]);
-            x[0] = x[0] + dpol[0]*np.cos(x[2]);
-            x[1] = x[1] + dpol[0]*np.sin(x[2]);
+            out[2] = util.limit_pi(x[2] + dpol[1]);
+            out[0] = x[0] + dpol[0]*np.cos(out[2]);
+            out[1] = x[1] + dpol[0]*np.sin(out[2]);
         if mm == 2 :                                                            # model 2) : translate then rotate
-            x[0] = x[0] + dpol[0]*np.cos(x[2]);
-            x[1] = x[1] + dpol[0]*np.sin(x[2]);
-            x[2] = util.limit_pi(x[2] + dpol[1]);
+            out[0] = x[0] + dpol[0]*np.cos(x[2]);
+            out[1] = x[1] + dpol[0]*np.sin(x[2]);
+            out[2] = util.limit_pi(x[2] + dpol[1]);
 
-        return x
+        return out
 
     def motion_model_jacobian(self, x, u):
         """ Jacobian of the motion model. Is dependent on position and motor speeds
@@ -97,7 +97,7 @@ class NewRobot:
         dpol = self.B @ u
         G = np.eye(5);
 
-        mm = 0;                                                                 # select motion model
+        mm = 1;                                                                 # select motion model
         if mm == 0 :                                                            # model 0) : curved tranlation
             dpol[1] = util.avoid_singularity(dpol[1])                           # avoid singularity
             c = dpol[0]/dpol[1];
@@ -154,7 +154,8 @@ class NewRobot:
         dpol[1] = util.avoid_singularity(dpol[1])                               # avoid singularity
         dpol[1] = util.cap_abs(dpol[1], self.maxw*self.Ts)                      # cap rotation so we don't spin on the spot too much (we lose a lot of precision that way)
 
-        dpol[0] = np.abs(dpol[1]) * np.sqrt( 0.5 * (dx.T @ dx) / (1-np.cos(dpol[1])))
+        #dpol[0] = np.abs(dpol[1]) * np.sqrt( 0.5 * (dx.T @ dx) / (1-np.cos(dpol[1])))
+        dpol[0] = np.sqrt(dx.T @ dx)
         dpol[0] = util.cap_abs(dpol[0], self.maxv*self.Ts)                      # cap speed
 
         u = np.linalg.inv(self.B) @ dpol
@@ -193,10 +194,10 @@ class NewRobot:
 
                 if idx_dim == 0:
                     y0 = np.array([xgrid[:,idx_pos[0]]]).T - xrel
-                    r0 = np.array([field.linew, field.grid/4])**2               # we can be relatively sure about the gridline coordinate, less about the other one
+                    r0 = np.array([2*field.linew, field.grid/4])**2             # we can be relatively sure about the gridline coordinate, less about the other one
                 else :
                     y0 = np.array([xgrid[:,idx_pos[1]]]).T - xrel
-                    r0 = np.array([field.grid/4, field.linew])**2
+                    r0 = np.array([field.grid/4, 2*field.linew])**2
 
                 r = np.concatenate((r0, r), axis=0)                             # BEWARE : this part is not robust at all, it can go terribly wrong terribly fast
                 C = np.concatenate((c0, C))
@@ -217,7 +218,7 @@ class NewRobot:
 
 
     ###### Do real stuff with Thymio
-    def do_motion(self, u):
+    def do_motion(self, u=np.zeros((2,1))):
         v = u.copy()
         v[u < 0] = 2**16 + u[u < 0]                                             # conform motor input to standard
 
@@ -243,7 +244,7 @@ class NewRobot:
         if not q.size:
             q = self.q
 
-        w = 4*np.sqrt([q]).T * np.random.randn(2,1) + np.array([[2],[0]])       # simulate excessive process noise & bias
+        w = np.sqrt([q]).T * np.random.randn(2,1) + np.array([[3],[0]])         # simulate process noise & small bias
         self.x = self.motion_model(self.x, u + w)
 
         return self.x.copy()
@@ -272,6 +273,20 @@ class NewRobot:
         return sensor_data
 
     ###### System control stuff
+
+    def kalman_prior(self, u):
+        self.xhat = self.motion_model(self.xhat, u)                             # a priori estimation
+        G         = self.motion_model_jacobian(self.xhat, u)
+        self.s    = G @ self.s @ G.T + self.motion_model_covariance(G)
+
+    def kalman_posterior(self, y):
+        S         = self.C @ self.s @ self.C.T + self.R
+        K         = self.s @ self.C.T @ np.linalg.inv(S)                        # Kalman gain
+        self.xhat = self.xhat + K @ (y - self.C @ self.xhat)                    # a posteriori estimation
+        self.s    = (np.eye(5) - K @ self.C) @ self.s
+        return self.xhat.copy(), self.s.copy()
+
+
     def kalman_estimator(self, u, y):
         """ generic extendend Kalman state estimator for a robot """
 
@@ -293,6 +308,7 @@ class NewRobot:
 
         thresh  = 50
         arrived = False
+        local_obstacle = False
 
         dist = [];
         for goal in goals :                                                     # find closes active goal (in case current goal is blocked by an obstacle)
@@ -305,13 +321,13 @@ class NewRobot:
         for i in range(idx) :
             goals.pop(0)                                                        # pop the useless goals from the list
 
-        if goals :
-            u = self.motion_model_inverse(self.xhat[0:3], np.array([goals[0]]).T) # use inverse motion model to figure out control signal to reach the next goal
-        else:
+        if not goals :
             u = np.zeros((2,1))
+            return u, local_obstacle
 
-        # make sure we don't bump into anything unexpected
+        u = self.motion_model_inverse(self.xhat[0:3], np.array([goals[0]]).T)   # use inverse motion model to figure out control signal to reach the next goal
 
+        # make sure we don't bump into anything unexpected :
         # check if thymio is avoiding an obstacle
         #  if yes and the goal is near
         #    -> check if goal is on the left or on the right
@@ -321,42 +337,36 @@ class NewRobot:
         if np.linalg.norm(np.array([goals[0]]).T - self.xhat[0:2]) < thresh :
             arrived = True
 
-        local_obstacle = False
-
         if self.th and self.th["event.args"][0] == 1:
             local_obstacle = True
             if arrived:
-                print("arrived")
                 side = self.th["event.args"][1] # 0 when left, 1 when right, 3 when none
                 goal_side = side
 
                 delta_x = (np.array([goals[-1]]).T[0] - self.xhat[0])
                 delta_y = (np.array([goals[-1]]).T[1] - self.xhat[1])
                 robot_ang = self.xhat[2]
-                ang_to_goal = math.atan2(delta_y, delta_x) # between -pi and pi
-                while ang_to_goal > 2*math.pi:
-                    ang_to_goal = ang_to_goal - 2*math.pi
+                ang_to_goal = np.arctan2(delta_y, delta_x) # between -pi and pi
+                while ang_to_goal > 2*np.pi:
+                    ang_to_goal = ang_to_goal - 2*np.pi
                 while ang_to_goal < 0:
-                    ang_to_goal = ang_to_goal + 2*math.pi
-                while robot_ang > 2*math.pi:
-                    robot_ang = robot_ang - 2*math.pi
+                    ang_to_goal = ang_to_goal + 2*np.pi
+                while robot_ang > 2*np.pi:
+                    robot_ang = robot_ang - 2*np.pi
                 while robot_ang < 0:
-                    robot_ang = robot_ang + 2*math.pi
+                    robot_ang = robot_ang + 2*np.pi
 
                 delta_ang = ang_to_goal - robot_ang
-                while delta_ang > 2*math.pi:
-                    delta_ang = delta_ang - 2*math.pi
+                while delta_ang > 2*np.pi:
+                    delta_ang = delta_ang - 2*np.pi
                 while delta_ang < 0:
-                    delta_ang = delta_ang + 2*math.pi
-                if delta_ang > math.pi:
+                    delta_ang = delta_ang + 2*np.pi
+                if delta_ang > np.pi:
                     goal_side = 1 # goal on the right
-                if delta_ang < math.pi:
+                if delta_ang < np.pi:
                     goal_side = 0 # goal on the left
 
-                print("side:",side)
-                print("goal side:",goal_side)
                 if side != goal_side:
-                    print("leave l_obs_mode")
                     self.th.set_var("event.args", 2)
                     local_obstacle = False
 
