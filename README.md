@@ -1,5 +1,5 @@
 # Mobile Robotics Project
-## for the EPFL course Basics of Mobile Robotics [https://isa.epfl.ch/imoniteur_ISAP/!itffichecours.htm?ww_i_matiere=2343869959&ww_x_anneeAcad=2020-2021&ww_i_section=2373753419](MICRO-452)
+## for the EPFL course Basics of Mobile Robotics [MICRO-452](https://isa.epfl.ch/imoniteur_ISAP/!itffichecours.htm?ww_i_matiere=2343869959&ww_x_anneeAcad=2020-2021&ww_i_section=2373753419)
 
 
 <!-- TABLE OF CONTENTS -->
@@ -31,8 +31,6 @@ The objective of this project is to create a program in Python/Aseba that:
 <!-- CONTACT -->
 ## Contact
 Biselx Michael - michael.biselx@epfl.ch
-Loïk Vuilleumier - loik.vuilleumier@epfl.ch
-Marc Favier - marc.favier@epfl.ch
 Samuel Bumann - samuel.bumann@epfl.ch
 
 
