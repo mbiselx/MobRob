@@ -30,7 +30,7 @@ The objective of this project is to create a program in Python/Aseba that:
 
 <!-- CONTACT -->
 ## Contact
-Biselx Michael - michael.biselx@epfl.ch
+Biselx Michael - michael.biselx@epfl.ch <br />
 Samuel Bumann - samuel.bumann@epfl.ch
 
 
