@@ -7,6 +7,7 @@
 
 * [About the Project](#about-the-project)
 * [Folder Structure](#folder-structure)
+* [Videos](#videos)
 * [Contact](#contact)
 
 <!-- ABOUT THE PROJECT -->
@@ -26,6 +27,19 @@ The objective of this project is to create a program in Python/Aseba that:
 | imgs                    | Images used in the Jupyter Notebook                                                                |
 | src                     | Python files used in the Jupyter Notebook                                                          |
 | videos                  | Videos used in the Jupyter Notebook                                                                |
+
+
+<!-- VIDEOS -->
+## Videos
+### Normal Run
+https://user-images.githubusercontent.com/58890541/176930515-029452b2-87f1-4749-9018-330c7729186e.mp4
+
+### No Camera
+https://user-images.githubusercontent.com/58890541/176930541-e1cc61dd-b3c6-4603-9e07-d21be98fef30.mp4
+
+### Kidnapping
+https://user-images.githubusercontent.com/58890541/176930577-ba048718-f207-4a86-a72a-6430ce9fd6ed.mp4
+
 
 
 <!-- CONTACT -->
